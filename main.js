@@ -70,5 +70,4 @@ client.on('messageCreate', async(msg) => {
 
 });
 
-console.log("TOKEN:", process.env.TOKEN);
 client.login(process.env.TOKEN);
