@@ -63,4 +63,10 @@ client.on('messageCreate', async(msg) => {
 
 });
 
+clinet.on('messageCreate', async(msg) => {
+    if(msg.content === 'ping') {
+        msg.reply('pong');
+    }
+});
+
 client.login(token);
