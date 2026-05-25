@@ -1,5 +1,5 @@
 const { Client, Events, GatewayIntentBits, ActivityType } = require('discord.js');
-const { token } = require('./.gitignore/config.json');
+require('dotenv').config();
 
 const client = new Client({
     intents: Object.values(GatewayIntentBits),
@@ -71,4 +71,4 @@ client.on('messageCreate', async(msg) => {
 
 });
 
-client.login(token);
+client.login(process.env.TOKEN);
