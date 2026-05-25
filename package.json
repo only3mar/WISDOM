@@ -1,0 +1,20 @@
+{
+  "name": "wisdom",
+  "version": "1.0.0",
+  "description": "best bot ever",
+  "keywords": [
+    "wisdom"
+  ],
+  "license": "ISC",
+  "author": "Albahrani",
+  "type": "commonjs",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node main.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.26.4"
+  },
+  "devDependencies": {}
+}
