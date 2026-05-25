@@ -70,4 +70,5 @@ client.on('messageCreate', async(msg) => {
 
 });
 
+console.log(process.env.TOKEN ? "TOKEN FOUND" : "NO TOKEN");
 client.login(process.env.TOKEN);
