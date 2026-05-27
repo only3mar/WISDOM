@@ -34,7 +34,7 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
         const member = newState.member;
 
         const tempChannel = await newState.guild.channels.create({
-            name: `${member.displayName}'s channel`,
+            name: `${member.displayName}`,
             type: ChannelType.GuildVoice,
             parent: CATEGORY_ID,
             permissionOverwrites: [
@@ -44,6 +44,20 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
                         PermissionFlagsBits.ManageChannels,
                         PermissionFlagsBits.MoveMembers,
                         PermissionFlagsBits.MuteMembers,
+                    ],
+                },
+                {
+                    id: '1489381789301735465',
+                    allow: [
+                        PermissionFlagsBits.ManageChannels,
+                        PermissionFlagsBits.MoveMembers,
+                        PermissionFlagsBits.MuteMembers,
+                        PermissionFlagsBits.DeafenMembers,
+                        PermissionFlagsBits.ViewChannel,
+                        PermissionFlagsBits.Connect,
+                        PermissionFlagsBits.Speak,
+                        PermissionFlagsBits.Stream,
+                        PermissionFlagsBits.PrioritySpeaker,
                     ],
                 },
             ],
@@ -266,6 +280,52 @@ client.on(Events.MessageCreate, async(msg) => {
         console.error(`Failed to send message in ${msg.channel.name}:`, err);
     }
 
+});
+
+
+// Auto Responder
+const cooldowns = new Map();
+client.on(Events.MessageCreate, async (msg) => {
+    if (msg.author.bot || !msg.guild) return;
+
+    const COOLDOWN_MS = 5000; // 5 seconds
+
+    const triggers = [
+        {
+            keywords: [
+                'سلام',
+                'السلام',
+                'سلام عليكم',
+                'السلام عليكم',
+                'سلام عليكم ورحمة الله',
+                'السلام عليكم ورحمة الله',
+                'سلام عليكم ورحمة الله وبركاته',
+                'السلام عليكم ورحمة الله وبركاته'
+            ],
+            response: 'وعليكم السلام ورحمة الله وبركاته <:Iran:1478987076371218593>',
+            cooldown: 10000,
+        },
+    ];
+
+    for (const trigger of triggers) {
+        const content = msg.content.toLowerCase();
+        const matched = trigger.keywords.some(k => content.includes(k));
+        if (!matched) continue;
+
+        const key = `${msg.author.id}-${trigger.keywords[0]}`;
+        const lastUsed = cooldowns.get(key) || 0;
+        const remaining = trigger.cooldown - (Date.now() - lastUsed);
+
+        if (remaining > 0) {
+            const seconds = (remaining / 1000).toFixed(1);
+            const warn = await msg.reply(`slow down! wait **${seconds}s** before doing that again.`);
+            setTimeout(() => warn.delete().catch(() => {}), 3000);
+            continue;
+        }
+
+        cooldowns.set(key, Date.now());
+        await msg.reply({ content: trigger.response });
+    }
 });
 
 client.login(process.env.TOKEN);
