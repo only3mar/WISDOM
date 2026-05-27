@@ -133,12 +133,12 @@ client.on(Events.MessageCreate, async (msg) => {
             .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 512 }))
             .setColor('#4195bc')
             .addFields(
-                { name: 'User ID',      value: user.id,                                         inline: true  },
-                { name: 'Bot',          value: user.bot ? 'Yes' : 'No',                         inline: true  },
-                { name: 'Created',      value: `<t:${Math.floor(user.createdTimestamp / 1000)}:D>`, inline: true },
+                { name: 'User ID',      value: user.id,                                              inline: true },
+                { name: 'Bot',          value: user.bot ? 'Yes' : 'No',                              inline: true },
+                { name: 'Created',      value: `<t:${Math.floor(user.createdTimestamp / 1000)}:D>`,  inline: true },
                 { name: 'Joined',       value: `<t:${Math.floor(target.joinedTimestamp / 1000)}:D>`, inline: true },
-                { name: 'Accent Color', value: user.hexAccentColor || 'None',                   inline: true  },
-                { name: 'Roles',        value: roles,                                           inline: false }
+                { name: 'Accent Color', value: user.hexAccentColor || 'None',                        inline: true },
+                { name: 'Roles',        value: roles,                                                inline: false }
             )
             .setFooter({ text: `Requested by ${msg.author.username}` })
             .setTimestamp();
@@ -302,7 +302,7 @@ client.on(Events.MessageCreate, async (msg) => {
                 'سلام عليكم ورحمة الله وبركاته',
                 'السلام عليكم ورحمة الله وبركاته'
             ],
-            response: 'وعليكم السلام ورحمة الله وبركاته <:Iran:1478987076371218593>',
+            response: '**وَعَلَيْكُمْ السَّلاَمُ وَرَحْمَةُ اللهِ وَبَرَكَاتُهُ**',
             cooldown: 10000,
         },
     ];
@@ -318,8 +318,8 @@ client.on(Events.MessageCreate, async (msg) => {
 
         if (remaining > 0) {
             const seconds = (remaining / 1000).toFixed(1);
-            const warn = await msg.reply(`مو فاضي لك الحين بعد ${seconds} ثواني أرد عليك`);
-            setTimeout(() => warn.delete().catch(() => {}), 3000);
+            const warn = await msg.reply(`مو فاضي لك الحين بعد ${seconds} ثواني أرد عليك..`);
+            setTimeout(() => warn.delete().catch(() => {}), 5000);
             continue;
         }
 
