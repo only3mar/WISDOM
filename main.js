@@ -16,7 +16,7 @@ client.once(Events.ClientReady, (readyClient) => {
         status: 'idle',
         activities: [
             {
-                name: 'Wisdom.',
+                name: 'حكمة',
                 type: ActivityType.Listening,
             }
         ],
@@ -42,7 +42,7 @@ client.on(Events.MessageCreate, async (msg) => {
     const user = await target.user.fetch(); // fetch to get banner
 
     // userInfo
-    if (command === 'userinfo') {
+    if (command === 'user') {
         const roles = target.roles.cache
             .filter(r => r.id !== msg.guild.id)
             .sort((a, b) => b.position - a.position)
@@ -50,18 +50,18 @@ client.on(Events.MessageCreate, async (msg) => {
             .join(', ') || 'None';
 
         const embed = new EmbedBuilder()
-            .setTitle(`${user.tag}`)
+            .setTitle(`${user.username}`)
             .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 512 }))
-            .setColor(target.displayHexColor || '#2f3136')
+            .setColor('#4195bc')
             .addFields(
-                { name: '🪪 User ID',      value: user.id,                                         inline: true  },
-                { name: '🤖 Bot',          value: user.bot ? 'Yes' : 'No',                         inline: true  },
-                { name: '📅 Created',      value: `<t:${Math.floor(user.createdTimestamp / 1000)}:D>`, inline: true },
-                { name: '📥 Joined',       value: `<t:${Math.floor(target.joinedTimestamp / 1000)}:D>`, inline: true },
-                { name: '🎨 Accent Color', value: user.hexAccentColor || 'None',                   inline: true  },
-                { name: '🏷️ Roles',        value: roles,                                           inline: false }
+                { name: 'User ID',      value: user.id,                                         inline: true  },
+                { name: 'Bot',          value: user.bot ? 'Yes' : 'No',                         inline: true  },
+                { name: 'Created',      value: `<t:${Math.floor(user.createdTimestamp / 1000)}:D>`, inline: true },
+                { name: 'Joined',       value: `<t:${Math.floor(target.joinedTimestamp / 1000)}:D>`, inline: true },
+                { name: 'Accent Color', value: user.hexAccentColor || 'None',                   inline: true  },
+                { name: 'Roles',        value: roles,                                           inline: false }
             )
-            .setFooter({ text: `Requested by ${msg.author.tag}` })
+            .setFooter({ text: `Requested by ${msg.author.username}` })
             .setTimestamp();
 
         return msg.reply({ embeds: [embed] });
@@ -75,11 +75,11 @@ client.on(Events.MessageCreate, async (msg) => {
         ).join(' • ');
 
         const embed = new EmbedBuilder()
-            .setTitle(`${user.tag}'s Avatar`)
+            .setTitle(`${user.username}'s Avatar`)
             .setImage(user.displayAvatarURL({ dynamic: true, size: 1024 }))
-            .setColor(target.displayHexColor || '#2f3136')
+            .setColor('#4195bc')
             .setDescription(links)
-            .setFooter({ text: `Requested by ${msg.author.tag}` })
+            .setFooter({ text: `Requested by ${msg.author.username}` })
             .setTimestamp();
 
         return msg.reply({ embeds: [embed] });
@@ -97,18 +97,18 @@ client.on(Events.MessageCreate, async (msg) => {
         ).join(' • ');
 
         const embed = new EmbedBuilder()
-            .setTitle(`${user.tag}'s Banner`)
+            .setTitle(`${user.username}'s Banner`)
             .setImage(user.bannerURL({ dynamic: true, size: 1024 }))
-            .setColor(user.hexAccentColor || '#2f3136')
+            .setColor('#4195bc')
             .setDescription(links)
-            .setFooter({ text: `Requested by ${msg.author.tag}` })
+            .setFooter({ text: `Requested by ${msg.author.username}` })
             .setTimestamp();
 
         return msg.reply({ embeds: [embed] });
     }
 
     // serverInfo
-    if (command === 'serverinfo') {
+    if (command === 'server') {
         const guild = await msg.guild.fetch();
 
         const channels = guild.channels.cache;
@@ -118,20 +118,20 @@ client.on(Events.MessageCreate, async (msg) => {
         const embed = new EmbedBuilder()
             .setTitle(guild.name)
             .setThumbnail(guild.iconURL({ dynamic: true, size: 512 }))
-            .setColor('#2f3136')
+            .setColor('#4195bc')
             .addFields(
-                { name: '🪪 Server ID',    value: guild.id,                                              inline: true  },
-                { name: '👑 Owner',        value: `<@${guild.ownerId}>`,                                 inline: true  },
-                { name: '📅 Created',      value: `<t:${Math.floor(guild.createdTimestamp / 1000)}:D>`,  inline: true  },
-                { name: '👥 Members',      value: `${guild.memberCount}`,                                inline: true  },
-                { name: '💬 Text',         value: `${textChannels}`,                                     inline: true  },
-                { name: '🔊 Voice',        value: `${voiceChannels}`,                                    inline: true  },
-                { name: '🚀 Boost Level',  value: `Level ${guild.premiumTier}`,                          inline: true  },
-                { name: '✨ Boosts',       value: `${guild.premiumSubscriptionCount}`,                   inline: true  },
-                { name: '🌍 Locale',       value: guild.preferredLocale,                                 inline: true  },
+                { name: 'Server ID',    value: guild.id,                                              inline: true  },
+                { name: 'Owner',        value: `<@${guild.ownerId}>`,                                 inline: true  },
+                { name: 'Created',      value: `<t:${Math.floor(guild.createdTimestamp / 1000)}:D>`,  inline: true  },
+                { name: 'Members',      value: `${guild.memberCount}`,                                inline: true  },
+                { name: 'Text',         value: `${textChannels}`,                                     inline: true  },
+                { name: 'Voice',        value: `${voiceChannels}`,                                    inline: true  },
+                { name: 'Boost Level',  value: `Level ${guild.premiumTier}`,                          inline: true  },
+                { name: 'Boosts',       value: `${guild.premiumSubscriptionCount}`,                   inline: true  },
+                { name: 'Locale',       value: guild.preferredLocale,                                 inline: true  },
             )
             .setImage(guild.bannerURL({ size: 1024 }) || null)
-            .setFooter({ text: `Requested by ${msg.author.tag}` })
+            .setFooter({ text: `Requested by ${msg.author.username}` })
             .setTimestamp();
 
         return msg.reply({ embeds: [embed] });
