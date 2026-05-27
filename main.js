@@ -24,19 +24,31 @@ client.once(Events.ClientReady, (readyClient) => {
 
 });
 
-client.on('messageCreate', async(msg) => {
-    if (msg.author.bot) return;
-    if (!msg.guild) return;
+
+// Auto Role
+client.on(Events.GuildMemberAdd, async (member) => {
+    const MemberRole = '1404843183325843468';
+    const BotsRole = '1404843194537213952';
+
+    try {
+        const roleId = member.user.bot ? BotsRole : MemberRole;
+
+        if (member.roles.cache.has(roleId)) return;
+
+        await member.roles.add(roleId);
+
+    } catch (err) {
+        console.error(err);
+    }
+});
+
+
+// Line & Reaction
+client.on(Events.MessageCreate, async(msg) => {
+    if (msg.author.bot || !msg.guild) return;
 
     const pubRoleId = '1484567853440045066';
     const stuRoleId = '1502459449082904686';
-
-    if (!msg.member.roles.cache.has(pubRoleId)) return false;
-    if (!msg.mentions.roles.has(stuRoleId)) return false;
-
-    await msg.channel.send({
-        content: "https://cdn.discordapp.com/attachments/1404832212372816033/1508429040208445541/41224142131234.png"
-    });
 
     const emojis = {
         '1487209090194083952': '🗂️',
@@ -54,12 +66,26 @@ client.on('messageCreate', async(msg) => {
         '1479619161557569709': '✨'
     };
 
-    const emoji = emojis[msg.channelId];
+    try {
+        if (!msg.member.roles.cache.has(pubRoleId)) return;
+        if (!msg.mentions.roles.has(stuRoleId)) return;
 
-    if (emoji) {
-        await msg.react(emoji);
-    };
+        const emoji = emojis[msg.channelId];
+
+        await msg.channel.send({
+            content: "https://cdn.discordapp.com/attachments/1404832212372816033/1508429040208445541/41224142131234.png"
+        });
+
+        if (emoji) {
+            await msg.react(emoji);
+        };
+
+    } catch (err) {
+        console.error(err);
+    }
 
 });
+
+
 
 client.login(process.env.TOKEN);
