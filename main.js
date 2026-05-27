@@ -1,4 +1,4 @@
-const { Client, Events, GatewayIntentBits, ActivityType } = require('discord.js');
+const { Client, Events, GatewayIntentBits, ActivityType, EmbedBuilder, ChannelType } = require('discord.js');
 
 const client = new Client({
     intents: Object.values(GatewayIntentBits),
@@ -25,6 +25,120 @@ client.once(Events.ClientReady, (readyClient) => {
 });
 
 
+// Commands
+client.on(Events.MessageCreate, async (msg) => {
+    if (msg.author.bot || !msg.guild) return;
+
+    const prefix = '!';
+    if (!msg.content.startsWith(prefix)) return;
+
+    const args = msg.content.slice(prefix.length).trim().split(/\s+/);
+    const command = args[0].toLowerCase();
+
+    const target = msg.mentions.users.first() 
+        ? await msg.guild.members.fetch(msg.mentions.users.first().id)
+        : msg.member;
+
+    const user = await target.user.fetch(); // fetch to get banner
+
+    // userInfo
+    if (command === 'userinfo') {
+        const roles = target.roles.cache
+            .filter(r => r.id !== msg.guild.id)
+            .sort((a, b) => b.position - a.position)
+            .map(r => r.toString())
+            .join(', ') || 'None';
+
+        const embed = new EmbedBuilder()
+            .setTitle(`${user.tag}`)
+            .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 512 }))
+            .setColor(target.displayHexColor || '#2f3136')
+            .addFields(
+                { name: '🪪 User ID',      value: user.id,                                         inline: true  },
+                { name: '🤖 Bot',          value: user.bot ? 'Yes' : 'No',                         inline: true  },
+                { name: '📅 Created',      value: `<t:${Math.floor(user.createdTimestamp / 1000)}:D>`, inline: true },
+                { name: '📥 Joined',       value: `<t:${Math.floor(target.joinedTimestamp / 1000)}:D>`, inline: true },
+                { name: '🎨 Accent Color', value: user.hexAccentColor || 'None',                   inline: true  },
+                { name: '🏷️ Roles',        value: roles,                                           inline: false }
+            )
+            .setFooter({ text: `Requested by ${msg.author.tag}` })
+            .setTimestamp();
+
+        return msg.reply({ embeds: [embed] });
+    }
+
+    // avatar
+    if (command === 'avatar') {
+        const formats = ['png', 'jpg', 'webp', ...(user.avatar?.startsWith('a_') ? ['gif'] : [])];
+        const links = formats.map(f =>
+            `[${f.toUpperCase()}](${user.displayAvatarURL({ extension: f, size: 1024 })})`
+        ).join(' • ');
+
+        const embed = new EmbedBuilder()
+            .setTitle(`${user.tag}'s Avatar`)
+            .setImage(user.displayAvatarURL({ dynamic: true, size: 1024 }))
+            .setColor(target.displayHexColor || '#2f3136')
+            .setDescription(links)
+            .setFooter({ text: `Requested by ${msg.author.tag}` })
+            .setTimestamp();
+
+        return msg.reply({ embeds: [embed] });
+    }
+
+    // banner
+    if (command === 'banner') {
+        if (!user.banner) {
+            return msg.reply({ content: `**${user.tag}** has no banner.` });
+        }
+
+        const formats = ['png', 'jpg', 'webp', ...(user.banner?.startsWith('a_') ? ['gif'] : [])];
+        const links = formats.map(f =>
+            `[${f.toUpperCase()}](${user.bannerURL({ extension: f, size: 1024 })})`
+        ).join(' • ');
+
+        const embed = new EmbedBuilder()
+            .setTitle(`${user.tag}'s Banner`)
+            .setImage(user.bannerURL({ dynamic: true, size: 1024 }))
+            .setColor(user.hexAccentColor || '#2f3136')
+            .setDescription(links)
+            .setFooter({ text: `Requested by ${msg.author.tag}` })
+            .setTimestamp();
+
+        return msg.reply({ embeds: [embed] });
+    }
+
+    // serverInfo
+    if (command === 'serverinfo') {
+        const guild = await msg.guild.fetch();
+
+        const channels = guild.channels.cache;
+        const textChannels = channels.filter(c => c.type === ChannelType.GuildText).size;
+        const voiceChannels = channels.filter(c => c.type === ChannelType.GuildVoice).size;
+
+        const embed = new EmbedBuilder()
+            .setTitle(guild.name)
+            .setThumbnail(guild.iconURL({ dynamic: true, size: 512 }))
+            .setColor('#2f3136')
+            .addFields(
+                { name: '🪪 Server ID',    value: guild.id,                                              inline: true  },
+                { name: '👑 Owner',        value: `<@${guild.ownerId}>`,                                 inline: true  },
+                { name: '📅 Created',      value: `<t:${Math.floor(guild.createdTimestamp / 1000)}:D>`,  inline: true  },
+                { name: '👥 Members',      value: `${guild.memberCount}`,                                inline: true  },
+                { name: '💬 Text',         value: `${textChannels}`,                                     inline: true  },
+                { name: '🔊 Voice',        value: `${voiceChannels}`,                                    inline: true  },
+                { name: '🚀 Boost Level',  value: `Level ${guild.premiumTier}`,                          inline: true  },
+                { name: '✨ Boosts',       value: `${guild.premiumSubscriptionCount}`,                   inline: true  },
+                { name: '🌍 Locale',       value: guild.preferredLocale,                                 inline: true  },
+            )
+            .setImage(guild.bannerURL({ size: 1024 }) || null)
+            .setFooter({ text: `Requested by ${msg.author.tag}` })
+            .setTimestamp();
+
+        return msg.reply({ embeds: [embed] });
+    }
+
+});
+
 // Auto Role
 client.on(Events.GuildMemberAdd, async (member) => {
     const MemberRole = '1404843183325843468';
@@ -37,8 +151,11 @@ client.on(Events.GuildMemberAdd, async (member) => {
 
         await member.roles.add(roleId);
 
+        console.log(
+            `Added ${member.user.bot ? 'bot' : 'member'} role to ${member.user.tag}`
+        );
     } catch (err) {
-        console.error(err);
+        console.error(`Failed to add role to ${member.user.tag}:`, err);
     }
 });
 
@@ -81,11 +198,9 @@ client.on(Events.MessageCreate, async(msg) => {
         };
 
     } catch (err) {
-        console.error(err);
+        console.error(`Failed to send message in ${msg.channel.name}:`, err);
     }
 
 });
-
-
 
 client.login(process.env.TOKEN);
