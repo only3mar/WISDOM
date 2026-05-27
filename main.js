@@ -1,4 +1,4 @@
-const { Client, Events, GatewayIntentBits, ActivityType, EmbedBuilder, ChannelType } = require('discord.js');
+const { Client, Events, GatewayIntentBits, ActivityType, EmbedBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 
 const client = new Client({
     intents: Object.values(GatewayIntentBits),
@@ -24,10 +24,75 @@ client.once(Events.ClientReady, (readyClient) => {
 
 });
 
+const tempChannels = new Map();
+client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
+    const TRIGGER_CHANNEL_ID = '1509183748758044742';
+    const CATEGORY_ID        = '1509183627785666730';
+
+    // User joins the trigger channel
+    if (newState.channelId === TRIGGER_CHANNEL_ID) {
+        const member = newState.member;
+
+        const tempChannel = await newState.guild.channels.create({
+            name: `${member.displayName}'s channel`,
+            type: ChannelType.GuildVoice,
+            parent: CATEGORY_ID,
+            permissionOverwrites: [
+                {
+                    id: member.id,
+                    allow: [
+                        PermissionFlagsBits.ManageChannels,
+                        PermissionFlagsBits.MoveMembers,
+                        PermissionFlagsBits.MuteMembers,
+                    ],
+                },
+            ],
+        });
+
+        tempChannels.set(tempChannel.id, { ownerId: member.id, timeout: null });
+
+        await member.voice.setChannel(tempChannel);
+        console.log(`Created temp channel: ${tempChannel.name}`);
+    }
+
+    // User leaves a temp channel
+    if (oldState.channelId && tempChannels.has(oldState.channelId)) {
+        const channelId = oldState.channelId;
+        const data      = tempChannels.get(channelId);
+        const channel   = oldState.guild.channels.cache.get(channelId);
+
+        if (!channel) return tempChannels.delete(channelId);
+
+        const isOwner = oldState.member.id === data.ownerId;
+        const isEmpty = channel.members.size === 0;
+
+        // Delete after 3s if owner left or channel is empty
+        if (isOwner || isEmpty) {
+            if (data.timeout) clearTimeout(data.timeout);
+
+            data.timeout = setTimeout(async () => {
+                const fresh = oldState.guild.channels.cache.get(channelId);
+                if (!fresh) return tempChannels.delete(channelId);
+
+                // Only delete if owner is still gone or channel is still empty
+                const ownerStillGone = !fresh.members.has(data.ownerId);
+                const stillEmpty     = fresh.members.size === 0;
+
+                if (ownerStillGone || stillEmpty) {
+                    await fresh.delete().catch(console.error);
+                    tempChannels.delete(channelId);
+                    console.log(`Deleted temp channel: ${fresh.name}`);
+                }
+            }, 3000);
+        }
+    }
+});
+
 
 // Commands
 client.on(Events.MessageCreate, async (msg) => {
     if (msg.author.bot || !msg.guild) return;
+    if (msg.channel.id !== '1404820193758412810') return;
 
     const prefix = '!';
     if (!msg.content.startsWith(prefix)) return;
