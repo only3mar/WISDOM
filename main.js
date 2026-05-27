@@ -255,7 +255,15 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
                 {
                     id: '1489381789301735465',
                     allow: [
-                        PermissionFlagsBits.Administrator,
+                        PermissionFlagsBits.ManageChannels,
+                        PermissionFlagsBits.MoveMembers,
+                        PermissionFlagsBits.MuteMembers,
+                        PermissionFlagsBits.DeafenMembers,
+                        PermissionFlagsBits.ViewChannel,
+                        PermissionFlagsBits.Connect,
+                        PermissionFlagsBits.Speak,
+                        PermissionFlagsBits.Stream,
+                        PermissionFlagsBits.PrioritySpeaker,
                     ],
                 },
             ],
