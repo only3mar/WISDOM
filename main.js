@@ -1,8 +1,5 @@
 const { Client, Events, GatewayIntentBits, ActivityType, EmbedBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
-
-const client = new Client({
-    intents: Object.values(GatewayIntentBits),
-});
+const client = new Client({ intents: Object.values(GatewayIntentBits) });
 
 client.once(Events.ClientReady, (readyClient) => {
     const botInfo = {
@@ -11,7 +8,6 @@ client.once(Events.ClientReady, (readyClient) => {
         Ping: client.ws.ping,
     };
     console.table(botInfo);
-
     client.user.setPresence({
         status: 'idle',
         activities: [
@@ -21,87 +17,7 @@ client.once(Events.ClientReady, (readyClient) => {
             }
         ],
     });
-
 });
-
-const tempChannels = new Map();
-client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
-    const TRIGGER_CHANNEL_ID = '1509183748758044742';
-    const CATEGORY_ID        = '1509183627785666730';
-
-    // User joins the trigger channel
-    if (newState.channelId === TRIGGER_CHANNEL_ID) {
-        const member = newState.member;
-
-        const tempChannel = await newState.guild.channels.create({
-            name: `${member.displayName}`,
-            type: ChannelType.GuildVoice,
-            parent: CATEGORY_ID,
-            permissionOverwrites: [
-                {
-                    id: member.id,
-                    allow: [
-                        PermissionFlagsBits.ManageChannels,
-                        PermissionFlagsBits.MoveMembers,
-                        PermissionFlagsBits.MuteMembers,
-                    ],
-                },
-                {
-                    id: '1489381789301735465',
-                    allow: [
-                        PermissionFlagsBits.ManageChannels,
-                        PermissionFlagsBits.MoveMembers,
-                        PermissionFlagsBits.MuteMembers,
-                        PermissionFlagsBits.DeafenMembers,
-                        PermissionFlagsBits.ViewChannel,
-                        PermissionFlagsBits.Connect,
-                        PermissionFlagsBits.Speak,
-                        PermissionFlagsBits.Stream,
-                        PermissionFlagsBits.PrioritySpeaker,
-                    ],
-                },
-            ],
-        });
-
-        tempChannels.set(tempChannel.id, { ownerId: member.id, timeout: null });
-
-        await member.voice.setChannel(tempChannel);
-        console.log(`Created temp channel: ${tempChannel.name}`);
-    }
-
-    // User leaves a temp channel
-    if (oldState.channelId && tempChannels.has(oldState.channelId)) {
-        const channelId = oldState.channelId;
-        const data      = tempChannels.get(channelId);
-        const channel   = oldState.guild.channels.cache.get(channelId);
-
-        if (!channel) return tempChannels.delete(channelId);
-
-        const isOwner = oldState.member.id === data.ownerId;
-        const isEmpty = channel.members.size === 0;
-
-        // Delete after 3s if owner left or channel is empty
-        if (isOwner || isEmpty) {
-            if (data.timeout) clearTimeout(data.timeout);
-
-            data.timeout = setTimeout(async () => {
-                const fresh = oldState.guild.channels.cache.get(channelId);
-                if (!fresh) return tempChannels.delete(channelId);
-
-                // Only delete if owner is still gone or channel is still empty
-                const ownerStillGone = !fresh.members.has(data.ownerId);
-                const stillEmpty     = fresh.members.size === 0;
-
-                if (ownerStillGone || stillEmpty) {
-                    await fresh.delete().catch(console.error);
-                    tempChannels.delete(channelId);
-                    console.log(`Deleted temp channel: ${fresh.name}`);
-                }
-            }, 3000);
-        }
-    }
-});
-
 
 // Commands
 client.on(Events.MessageCreate, async (msg) => {
@@ -218,26 +134,6 @@ client.on(Events.MessageCreate, async (msg) => {
 
 });
 
-// Auto Role
-client.on(Events.GuildMemberAdd, async (member) => {
-    const MemberRole = '1404843183325843468';
-    const BotsRole = '1404843194537213952';
-
-    try {
-        const roleId = member.user.bot ? BotsRole : MemberRole;
-
-        if (member.roles.cache.has(roleId)) return;
-
-        await member.roles.add(roleId);
-
-        console.log(
-            `Added ${member.user.bot ? 'bot' : 'member'} role to ${member.user.tag}`
-        );
-    } catch (err) {
-        console.error(`Failed to add role to ${member.user.tag}:`, err);
-    }
-});
-
 
 // Line & Reaction
 client.on(Events.MessageCreate, async(msg) => {
@@ -318,13 +214,117 @@ client.on(Events.MessageCreate, async (msg) => {
 
         if (remaining > 0) {
             const seconds = (remaining / 1000).toFixed(1);
-            const warn = await msg.reply(`مو فاضي لك الحين بعد ${seconds} ثواني أرد عليك..`);
+            const warn = await msg.reply(`مو فاضي لك الحين بعد **${seconds}** ثواني أرد عليك..`);
             setTimeout(() => warn.delete().catch(() => {}), 5000);
             continue;
         }
 
         cooldowns.set(key, Date.now());
         await msg.reply({ content: trigger.response });
+    }
+});
+
+
+
+
+
+
+// TempChannels
+const tempChannels = new Map();
+client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
+    const TRIGGER_CHANNEL_ID = '1509183748758044742';
+    const CATEGORY_ID        = '1509183627785666730';
+
+    // User joins the trigger channel
+    if (newState.channelId === TRIGGER_CHANNEL_ID) {
+        const member = newState.member;
+
+        const tempChannel = await newState.guild.channels.create({
+            name: `${member.displayName}`,
+            type: ChannelType.GuildVoice,
+            parent: CATEGORY_ID,
+            permissionOverwrites: [
+                {
+                    id: member.id,
+                    allow: [
+                        PermissionFlagsBits.ManageChannels,
+                        PermissionFlagsBits.MoveMembers,
+                        PermissionFlagsBits.MuteMembers,
+                    ],
+                },
+                {
+                    id: '1489381789301735465',
+                    allow: [
+                        PermissionFlagsBits.ManageChannels,
+                        PermissionFlagsBits.MoveMembers,
+                        PermissionFlagsBits.MuteMembers,
+                        PermissionFlagsBits.DeafenMembers,
+                        PermissionFlagsBits.ViewChannel,
+                        PermissionFlagsBits.Connect,
+                        PermissionFlagsBits.Speak,
+                        PermissionFlagsBits.Stream,
+                        PermissionFlagsBits.PrioritySpeaker,
+                    ],
+                },
+            ],
+        });
+
+        tempChannels.set(tempChannel.id, { ownerId: member.id, timeout: null });
+
+        await member.voice.setChannel(tempChannel);
+        console.log(`Created temp channel: ${tempChannel.name}`);
+    }
+
+    // User leaves a temp channel
+    if (oldState.channelId && tempChannels.has(oldState.channelId)) {
+        const channelId = oldState.channelId;
+        const data      = tempChannels.get(channelId);
+        const channel   = oldState.guild.channels.cache.get(channelId);
+
+        if (!channel) return tempChannels.delete(channelId);
+
+        const isOwner = oldState.member.id === data.ownerId;
+        const isEmpty = channel.members.size === 0;
+
+        // Delete after 3s if owner left or channel is empty
+        if (isOwner || isEmpty) {
+            if (data.timeout) clearTimeout(data.timeout);
+
+            data.timeout = setTimeout(async () => {
+                const fresh = oldState.guild.channels.cache.get(channelId);
+                if (!fresh) return tempChannels.delete(channelId);
+
+                // Only delete if owner is still gone or channel is still empty
+                const ownerStillGone = !fresh.members.has(data.ownerId);
+                const stillEmpty     = fresh.members.size === 0;
+
+                if (ownerStillGone || stillEmpty) {
+                    await fresh.delete().catch(console.error);
+                    tempChannels.delete(channelId);
+                    console.log(`Deleted temp channel: ${fresh.name}`);
+                }
+            }, 3000);
+        }
+    }
+});
+
+// Auto Role
+client.on(Events.GuildMemberAdd, async (member) => {
+    const MemberRole = '1404843183325843468';
+    const BotsRole = '1404843194537213952';
+
+    try {
+        const roleId = member.user.bot ? BotsRole : MemberRole;
+
+        if (member.roles.cache.has(roleId)) return;
+
+        await member.roles.add(roleId);
+
+        console.log(
+            `Added ${member.user.bot ? 'bot' : 'member'} role to ${member.user.tag}`
+        );
+    } catch (err) {
+        console.error(`Failed to add role to ${member.user.tag}:`, err);
     }
 });
 
