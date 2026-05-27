@@ -318,7 +318,7 @@ client.on(Events.MessageCreate, async (msg) => {
 
         if (remaining > 0) {
             const seconds = (remaining / 1000).toFixed(1);
-            const warn = await msg.reply(`slow down! wait **${seconds}s** before doing that again.`);
+            const warn = await msg.reply(`مو فاضي لك الحين بعد ${seconds} ثواني أرد عليك`);
             setTimeout(() => warn.delete().catch(() => {}), 3000);
             continue;
         }
