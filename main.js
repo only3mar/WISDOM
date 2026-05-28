@@ -184,6 +184,25 @@ const cooldowns = new Map();
 client.on(Events.MessageCreate, async (msg) => {
     if (msg.author.bot || !msg.guild) return;
 
+    const blockedChannels = [
+        '1505101671506640977',
+        '1487209090194083952',
+        '1483814381966856263',
+        '1499862075009142945',
+        '1476969874486984835',
+        '1476969914098253957',
+        '1477112057936740535',
+        '1508420130298662952',
+        '1487230799794405477',
+        '1495764904798322769',
+        '1505093096285802526',
+        '1486838526229221527',
+        '1477099072631341269',
+        '1479619161557569709',
+    ];
+
+    if (blockedChannels.includes(msg.channel.id)) return;
+
     const COOLDOWN_MS = 5000; // 5 seconds
 
     const triggers = [
@@ -204,8 +223,8 @@ client.on(Events.MessageCreate, async (msg) => {
     ];
 
     for (const trigger of triggers) {
-        const content = msg.content.toLowerCase();
-        const matched = trigger.keywords.some(k => content.includes(k));
+        const content = msg.content.trim().toLowerCase();
+        const matched = trigger.keywords.some(k => content.startsWith(k));
         if (!matched) continue;
 
         const key = `${msg.author.id}-${trigger.keywords[0]}`;
