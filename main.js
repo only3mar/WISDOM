@@ -348,15 +348,14 @@ client.on(Events.GuildMemberAdd, async (member) => {
 });
 
 
-
-const TRIGGER_CHANNEL_ID  = '1404820170609787011';
-const TICKET_CATEGORY_ID  = '1509660257872511036';
-const LOG_CHANNEL_ID      = '1509660404912230430';
-const MOD_ROLE_ID         = '1489381789301735465';
+const TRIGGER_CHANNEL_ID = '1404820170609787011';
+const TICKET_CATEGORY_ID = '1509660257872511036';
+const CLAIM_CHANNEL_ID   = '1509660404912230430'; // mods claim here
+const LOG_CHANNEL_ID     = '1509661203071500509'; // logs here
+const MOD_ROLE_ID        = '1489381789301735465';
 
 const activeTickets = new Map(); // userId -> channelId
 
-// Create ticket on #سؤال
 client.on(Events.MessageCreate, async (msg) => {
     if (msg.author.bot || !msg.guild) return;
     if (msg.channel.id !== TRIGGER_CHANNEL_ID) return;
@@ -364,13 +363,17 @@ client.on(Events.MessageCreate, async (msg) => {
 
     await msg.delete().catch(() => {});
 
+    // Duplicate check — also clears stale entries if channel was manually deleted
     if (activeTickets.has(msg.author.id)) {
-        const existing = msg.guild.channels.cache.get(activeTickets.get(msg.author.id));
-        const warn = await msg.channel.send({
-            content: `<@${msg.author.id}> لديك تذكرة مفتوحة بالفعل: ${existing ?? 'غير موجودة'}`,
-        });
-        setTimeout(() => warn.delete().catch(() => {}), 5000);
-        return;
+        const existingChannel = msg.guild.channels.cache.get(activeTickets.get(msg.author.id));
+        if (existingChannel) {
+            const warn = await msg.channel.send({
+                content: `<@${msg.author.id}> لديك تذكرة مفتوحة بالفعل: ${existingChannel}`,
+            });
+            setTimeout(() => warn.delete().catch(() => {}), 5000);
+            return;
+        }
+        activeTickets.delete(msg.author.id); // stale entry, clear it
     }
 
     const ticketChannel = await msg.guild.channels.create({
@@ -379,11 +382,11 @@ client.on(Events.MessageCreate, async (msg) => {
         parent: TICKET_CATEGORY_ID,
         permissionOverwrites: [
             {
-                id: msg.guild.id, // @everyone
+                id: msg.guild.id, // @everyone — no one can see it
                 deny: [PermissionFlagsBits.ViewChannel],
             },
             {
-                id: msg.author.id,
+                id: msg.author.id, // owner can see it
                 allow: [
                     PermissionFlagsBits.ViewChannel,
                     PermissionFlagsBits.SendMessages,
@@ -391,22 +394,13 @@ client.on(Events.MessageCreate, async (msg) => {
                     PermissionFlagsBits.AttachFiles,
                 ],
             },
-            {
-                id: MOD_ROLE_ID,
-                allow: [
-                    PermissionFlagsBits.ViewChannel,
-                    PermissionFlagsBits.SendMessages,
-                    PermissionFlagsBits.ReadMessageHistory,
-                    PermissionFlagsBits.ManageMessages,
-                    PermissionFlagsBits.AttachFiles,
-                ],
-            },
+            // mods are NOT added here — they get access only after claiming
         ],
     });
 
     activeTickets.set(msg.author.id, ticketChannel.id);
 
-    // Welcome message inside the ticket
+    // Welcome message inside ticket
     const welcomeEmbed = new EmbedBuilder()
         .setTitle('📩 تذكرة جديدة')
         .setDescription(`مرحباً <@${msg.author.id}>، سيتم الرد عليك في أقرب وقت.\nيمكنك كتابة سؤالك هنا.`)
@@ -424,14 +418,13 @@ client.on(Events.MessageCreate, async (msg) => {
 
     await ticketChannel.send({ embeds: [welcomeEmbed], components: [closeRow] });
 
-    // Log message in mod channel with claim button
-    const logEmbed = new EmbedBuilder()
-        .setTitle('🎫 تذكرة جديدة')
+    // Claim message in claim channel
+    const claimEmbed = new EmbedBuilder()
+        .setTitle('🎫 تذكرة جديدة — بانتظار الاستلام')
         .addFields(
-            { name: '👤 المستخدم',  value: `<@${msg.author.id}>`,  inline: true },
-            { name: '🆔 ID',         value: msg.author.id,           inline: true },
-            { name: '📅 التاريخ',   value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false },
-            { name: '📌 القناة',    value: `${ticketChannel}`,       inline: false },
+            { name: '👤 المستخدم', value: `<@${msg.author.id}>`, inline: true },
+            { name: '🆔 ID',       value: msg.author.id,          inline: true },
+            { name: '📅 التاريخ', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false },
         )
         .setThumbnail(msg.author.displayAvatarURL({ dynamic: true }))
         .setColor('#57F287')
@@ -450,39 +443,50 @@ client.on(Events.MessageCreate, async (msg) => {
             .setEmoji('🔒'),
     );
 
+    const claimChannel = msg.guild.channels.cache.get(CLAIM_CHANNEL_ID);
+    if (claimChannel) await claimChannel.send({ embeds: [claimEmbed], components: [claimRow] });
+
+    // Log message in log channel
+    const logEmbed = new EmbedBuilder()
+        .setTitle('📋 سجل — تذكرة مفتوحة')
+        .addFields(
+            { name: '👤 المستخدم', value: `<@${msg.author.id}>`, inline: true },
+            { name: '🆔 ID',       value: msg.author.id,          inline: true },
+            { name: '📌 القناة',  value: `${ticketChannel}`,      inline: false },
+            { name: '📅 التاريخ', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false },
+        )
+        .setColor('#5865F2')
+        .setTimestamp();
+
     const logChannel = msg.guild.channels.cache.get(LOG_CHANNEL_ID);
-    if (logChannel) await logChannel.send({ embeds: [logEmbed], components: [claimRow] });
+    if (logChannel) await logChannel.send({ embeds: [logEmbed] });
 
     console.log(`Ticket created: ${ticketChannel.name}`);
 });
 
 
-// Handle buttons (claim + close)
 client.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isButton()) return;
 
     const { customId, member, guild } = interaction;
     const isMod = member.roles.cache.has(MOD_ROLE_ID);
 
-    // ── Claim ticket ──────────────────────────────────────────
+    // ── Claim ─────────────────────────────────────────────────
     if (customId.startsWith('claim_ticket_')) {
         if (!isMod) {
             return interaction.reply({ content: 'ليس لديك صلاحية لاستلام التذكرة.', ephemeral: true });
         }
 
-        const ownerId    = customId.replace('claim_ticket_', '');
-        const channelId  = activeTickets.get(ownerId);
-        const channel    = guild.channels.cache.get(channelId);
+        const ownerId   = customId.replace('claim_ticket_', '');
+        const channelId = activeTickets.get(ownerId);
+        const channel   = guild.channels.cache.get(channelId);
 
         if (!channel) {
+            activeTickets.delete(ownerId);
             return interaction.reply({ content: 'التذكرة غير موجودة أو تم حذفها.', ephemeral: true });
         }
 
-        // Remove all other mods — only claimer can see it now
-        await channel.permissionOverwrites.edit(MOD_ROLE_ID, {
-            ViewChannel: false,
-        });
-
+        // Give only the claiming mod access
         await channel.permissionOverwrites.edit(member.id, {
             ViewChannel:        true,
             SendMessages:       true,
@@ -498,7 +502,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         await channel.send({ embeds: [claimEmbed] });
 
-        // Update log message — disable the claim button
+        // Disable claim button on the claim message
         const disabledRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId(`claim_ticket_${ownerId}`)
@@ -514,10 +518,26 @@ client.on(Events.InteractionCreate, async (interaction) => {
         );
 
         await interaction.update({ components: [disabledRow] });
+
+        // Log the claim
+        const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
+        if (logChannel) {
+            const logEmbed = new EmbedBuilder()
+                .setTitle('✋ تذكرة مُستلَمة')
+                .addFields(
+                    { name: '👤 صاحب التذكرة', value: `<@${ownerId}>`,    inline: true },
+                    { name: '🛡️ المستلِم',      value: `<@${member.id}>`, inline: true },
+                    { name: '📌 القناة',        value: `${channel}`,      inline: false },
+                )
+                .setColor('#FEE75C')
+                .setTimestamp();
+            await logChannel.send({ embeds: [logEmbed] });
+        }
+
         console.log(`Ticket claimed by ${member.user.tag}`);
     }
 
-    // ── Close ticket ──────────────────────────────────────────
+    // ── Close ─────────────────────────────────────────────────
     if (customId.startsWith('close_ticket_')) {
         const ownerId = customId.replace('close_ticket_', '');
 
@@ -540,10 +560,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         await interaction.reply({ embeds: [closeEmbed] });
 
-        // Log closure
+        // Log the closure
         const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
         if (logChannel) {
-            const closedEmbed = new EmbedBuilder()
+            const logEmbed = new EmbedBuilder()
                 .setTitle('🔒 تذكرة مغلقة')
                 .addFields(
                     { name: '👤 صاحب التذكرة', value: `<@${ownerId}>`,    inline: true },
@@ -551,7 +571,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 )
                 .setColor('#ED4245')
                 .setTimestamp();
-            await logChannel.send({ embeds: [closedEmbed] });
+            await logChannel.send({ embeds: [logEmbed] });
         }
 
         activeTickets.delete(ownerId);
