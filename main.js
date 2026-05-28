@@ -418,6 +418,11 @@ client.on(Events.MessageCreate, async (msg) => {
 
     await ticketChannel.send({ embeds: [welcomeEmbed], components: [closeRow] });
 
+    console.log('Channel created:', ticketChannel.id, ticketChannel.name);
+    console.log('Sending welcome message...');
+    const welcomeMsg = await ticketChannel.send({ embeds: [welcomeEmbed], components: [closeRow] });
+    console.log('Welcome sent:', welcomeMsg.id);
+
     // Claim message in claim channel
     const claimEmbed = new EmbedBuilder()
         .setTitle('🎫 تذكرة جديدة — بانتظار الاستلام')
@@ -444,6 +449,7 @@ client.on(Events.MessageCreate, async (msg) => {
     );
 
     const claimChannel = msg.guild.channels.cache.get(CLAIM_CHANNEL_ID);
+    console.log('Claim channel:', claimChannel?.id, claimChannel ? 'found' : 'NOT FOUND');
     if (claimChannel) await claimChannel.send({ embeds: [claimEmbed], components: [claimRow] });
 
     // Log message in log channel
