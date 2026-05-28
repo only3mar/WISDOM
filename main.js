@@ -347,4 +347,223 @@ client.on(Events.GuildMemberAdd, async (member) => {
     }
 });
 
+
+
+javascriptconst { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits } = require('discord.js');
+
+const TRIGGER_CHANNEL_ID  = '1404820170609787011';
+const TICKET_CATEGORY_ID  = '1509660257872511036';
+const LOG_CHANNEL_ID      = '1509660404912230430';
+const MOD_ROLE_ID         = '1489381789301735465';
+
+const activeTickets = new Map(); // userId -> channelId
+
+// Create ticket on #سؤال
+client.on(Events.MessageCreate, async (msg) => {
+    if (msg.author.bot || !msg.guild) return;
+    if (msg.channel.id !== TRIGGER_CHANNEL_ID) return;
+    if (msg.content.trim() !== '#سؤال') return;
+
+    await msg.delete().catch(() => {});
+
+    if (activeTickets.has(msg.author.id)) {
+        const existing = msg.guild.channels.cache.get(activeTickets.get(msg.author.id));
+        const warn = await msg.channel.send({
+            content: `<@${msg.author.id}> لديك تذكرة مفتوحة بالفعل: ${existing ?? 'غير موجودة'}`,
+        });
+        setTimeout(() => warn.delete().catch(() => {}), 5000);
+        return;
+    }
+
+    const ticketChannel = await msg.guild.channels.create({
+        name: `question-${msg.member.displayName}`.toLowerCase().replace(/\s+/g, '-'),
+        type: ChannelType.GuildText,
+        parent: TICKET_CATEGORY_ID,
+        permissionOverwrites: [
+            {
+                id: msg.guild.id, // @everyone
+                deny: [PermissionFlagsBits.ViewChannel],
+            },
+            {
+                id: msg.author.id,
+                allow: [
+                    PermissionFlagsBits.ViewChannel,
+                    PermissionFlagsBits.SendMessages,
+                    PermissionFlagsBits.ReadMessageHistory,
+                    PermissionFlagsBits.AttachFiles,
+                ],
+            },
+            {
+                id: MOD_ROLE_ID,
+                allow: [
+                    PermissionFlagsBits.ViewChannel,
+                    PermissionFlagsBits.SendMessages,
+                    PermissionFlagsBits.ReadMessageHistory,
+                    PermissionFlagsBits.ManageMessages,
+                    PermissionFlagsBits.AttachFiles,
+                ],
+            },
+        ],
+    });
+
+    activeTickets.set(msg.author.id, ticketChannel.id);
+
+    // Welcome message inside the ticket
+    const welcomeEmbed = new EmbedBuilder()
+        .setTitle('📩 تذكرة جديدة')
+        .setDescription(`مرحباً <@${msg.author.id}>، سيتم الرد عليك في أقرب وقت.\nيمكنك كتابة سؤالك هنا.`)
+        .setColor('#5865F2')
+        .setFooter({ text: `ID: ${msg.author.id}` })
+        .setTimestamp();
+
+    const closeRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId(`close_ticket_${msg.author.id}`)
+            .setLabel('إغلاق التذكرة')
+            .setStyle(ButtonStyle.Danger)
+            .setEmoji('🔒'),
+    );
+
+    await ticketChannel.send({ embeds: [welcomeEmbed], components: [closeRow] });
+
+    // Log message in mod channel with claim button
+    const logEmbed = new EmbedBuilder()
+        .setTitle('🎫 تذكرة جديدة')
+        .addFields(
+            { name: '👤 المستخدم',  value: `<@${msg.author.id}>`,  inline: true },
+            { name: '🆔 ID',         value: msg.author.id,           inline: true },
+            { name: '📅 التاريخ',   value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false },
+            { name: '📌 القناة',    value: `${ticketChannel}`,       inline: false },
+        )
+        .setThumbnail(msg.author.displayAvatarURL({ dynamic: true }))
+        .setColor('#57F287')
+        .setTimestamp();
+
+    const claimRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId(`claim_ticket_${msg.author.id}`)
+            .setLabel('استلام التذكرة')
+            .setStyle(ButtonStyle.Success)
+            .setEmoji('✋'),
+        new ButtonBuilder()
+            .setCustomId(`close_ticket_${msg.author.id}`)
+            .setLabel('إغلاق')
+            .setStyle(ButtonStyle.Danger)
+            .setEmoji('🔒'),
+    );
+
+    const logChannel = msg.guild.channels.cache.get(LOG_CHANNEL_ID);
+    if (logChannel) await logChannel.send({ embeds: [logEmbed], components: [claimRow] });
+
+    console.log(`Ticket created: ${ticketChannel.name}`);
+});
+
+
+// Handle buttons (claim + close)
+client.on(Events.InteractionCreate, async (interaction) => {
+    if (!interaction.isButton()) return;
+
+    const { customId, member, guild } = interaction;
+    const isMod = member.roles.cache.has(MOD_ROLE_ID);
+
+    // ── Claim ticket ──────────────────────────────────────────
+    if (customId.startsWith('claim_ticket_')) {
+        if (!isMod) {
+            return interaction.reply({ content: 'ليس لديك صلاحية لاستلام التذكرة.', ephemeral: true });
+        }
+
+        const ownerId    = customId.replace('claim_ticket_', '');
+        const channelId  = activeTickets.get(ownerId);
+        const channel    = guild.channels.cache.get(channelId);
+
+        if (!channel) {
+            return interaction.reply({ content: 'التذكرة غير موجودة أو تم حذفها.', ephemeral: true });
+        }
+
+        // Remove all other mods — only claimer can see it now
+        await channel.permissionOverwrites.edit(MOD_ROLE_ID, {
+            ViewChannel: false,
+        });
+
+        await channel.permissionOverwrites.edit(member.id, {
+            ViewChannel:        true,
+            SendMessages:       true,
+            ReadMessageHistory: true,
+            ManageMessages:     true,
+            AttachFiles:        true,
+        });
+
+        const claimEmbed = new EmbedBuilder()
+            .setDescription(`✋ تم استلام التذكرة من قِبَل <@${member.id}>`)
+            .setColor('#FEE75C')
+            .setTimestamp();
+
+        await channel.send({ embeds: [claimEmbed] });
+
+        // Update log message — disable the claim button
+        const disabledRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`claim_ticket_${ownerId}`)
+                .setLabel(`استُلمت بواسطة ${member.displayName}`)
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('✋')
+                .setDisabled(true),
+            new ButtonBuilder()
+                .setCustomId(`close_ticket_${ownerId}`)
+                .setLabel('إغلاق')
+                .setStyle(ButtonStyle.Danger)
+                .setEmoji('🔒'),
+        );
+
+        await interaction.update({ components: [disabledRow] });
+        console.log(`Ticket claimed by ${member.user.tag}`);
+    }
+
+    // ── Close ticket ──────────────────────────────────────────
+    if (customId.startsWith('close_ticket_')) {
+        const ownerId = customId.replace('close_ticket_', '');
+
+        if (!isMod && member.id !== ownerId) {
+            return interaction.reply({ content: 'ليس لديك صلاحية لإغلاق هذه التذكرة.', ephemeral: true });
+        }
+
+        const channelId = activeTickets.get(ownerId);
+        const channel   = guild.channels.cache.get(channelId);
+
+        if (!channel) {
+            activeTickets.delete(ownerId);
+            return interaction.reply({ content: 'التذكرة غير موجودة.', ephemeral: true });
+        }
+
+        const closeEmbed = new EmbedBuilder()
+            .setDescription(`🔒 جارٍ إغلاق التذكرة بواسطة <@${member.id}>...`)
+            .setColor('#ED4245')
+            .setTimestamp();
+
+        await interaction.reply({ embeds: [closeEmbed] });
+
+        // Log closure
+        const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
+        if (logChannel) {
+            const closedEmbed = new EmbedBuilder()
+                .setTitle('🔒 تذكرة مغلقة')
+                .addFields(
+                    { name: '👤 صاحب التذكرة', value: `<@${ownerId}>`,    inline: true },
+                    { name: '🔒 أغلقها',        value: `<@${member.id}>`, inline: true },
+                )
+                .setColor('#ED4245')
+                .setTimestamp();
+            await logChannel.send({ embeds: [closedEmbed] });
+        }
+
+        activeTickets.delete(ownerId);
+
+        setTimeout(async () => {
+            await channel.delete().catch(console.error);
+        }, 3000);
+    }
+});
+
+
+
 client.login(process.env.TOKEN);
