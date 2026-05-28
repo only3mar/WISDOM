@@ -349,8 +349,6 @@ client.on(Events.GuildMemberAdd, async (member) => {
 
 
 
-javascriptconst { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits } = require('discord.js');
-
 const TRIGGER_CHANNEL_ID  = '1404820170609787011';
 const TICKET_CATEGORY_ID  = '1509660257872511036';
 const LOG_CHANNEL_ID      = '1509660404912230430';
